@@ -63,7 +63,7 @@ namespace BookSpace.Web
             services.AddScoped<ICommentRepository, CommentRepository>();
 
             //bookservices
-            services.AddScoped<BookDataServices>();
+            services.AddScoped<BookServices>();
 
             //Factories
             services.AddScoped<IFactory<Book, BookResponseModel>, BookFactory>();

@@ -32,7 +32,7 @@ namespace BookSpace.Web.Areas.Admin.Controllers
         private readonly IGenreRepository genreRepository;
         private readonly IMapper objectMapper;
         private readonly UserManager<ApplicationUser> userManager;
-        private readonly BookDataServices bookServices;
+        private readonly BookServices bookServices;
         private readonly IBlobStorageService blobStorageService;
         private readonly IFactory<Book, BookResponseModel> bookFactory;
         private readonly IFactory<Genre, GenreResponseModel> genreFactory;
@@ -41,7 +41,7 @@ namespace BookSpace.Web.Areas.Admin.Controllers
 
         public AdminController(IApplicationUserRepository userRepository, IBookRepository bookRepository, ITagRepository tagRepository, IGenreRepository genreRepository,
             IFactory<Book, BookResponseModel> bookFactory, IFactory<Genre, GenreResponseModel> genreFactory, IFactory<Tag, TagResponseModel> tagFactory,
-            IMapper objectMapper, UserManager<ApplicationUser> userManager, BookDataServices bookServices, IBlobStorageService blobStorageService)
+            IMapper objectMapper, UserManager<ApplicationUser> userManager, BookServices bookServices, IBlobStorageService blobStorageService)
         {
             this.userRepository = userRepository;
             this.bookRepository = bookRepository;
@@ -60,12 +60,7 @@ namespace BookSpace.Web.Areas.Admin.Controllers
         {
             var users = this.userRepository.GetAllAsync().Result.ToList();
 
-            var userViewModels = new List<ApplicationUserViewModel>();
-
-            foreach (var user in users)
-            {
-                userViewModels.Add(this.objectMapper.Map<ApplicationUserViewModel>(user));
-            }
+            var userViewModels = this.objectMapper.Map<IEnumerable<ApplicationUser>, IEnumerable<ApplicationUserViewModel>>(users);
 
             return View(userViewModels);
         }
@@ -97,10 +92,9 @@ namespace BookSpace.Web.Areas.Admin.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> EditUser(ApplicationUserViewModel userViewModel)
         {
-            //TODO:Getting user by anything that can be changed is impossible!So I must use Id and therefore ID cannot be changed which is not good!
-            var dbModel = this.userManager.FindByIdAsync(userViewModel.Id).Result;
+            var dbUser = this.userManager.FindByIdAsync(userViewModel.Id).Result;
 
-            var user = this.objectMapper.Map(userViewModel, dbModel);
+            var user = this.objectMapper.Map(userViewModel, dbUser);
 
             if (userViewModel.isAdmin)
             {
@@ -142,7 +136,6 @@ namespace BookSpace.Web.Areas.Admin.Controllers
         [HttpGet("/EditBook/{bookid}")]
         public IActionResult EditBook(string bookId)
         {
-
             var dbModel = this.bookRepository.GetByIdAsync(bookId).Result;
 
             var bookViewModel = objectMapper.Map<DetailedBookViewModel>(dbModel);

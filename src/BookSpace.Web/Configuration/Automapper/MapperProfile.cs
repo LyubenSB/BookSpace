@@ -16,6 +16,7 @@ namespace BookSpace.Web.Configuration.Automapper
             CreateMap<Book, DetailedBookViewModel>().ReverseMap();
             CreateMap<Book, BookResponseModel>();
             CreateMap<Comment, CommentViewModel>().ForMember(c => c.Author, a => a.MapFrom(u => u.User.UserName));
+            CreateMap<Comment, CommentResponseModel>().ForMember(c => c.Author, a => a.MapFrom(u => u.User.UserName));
             CreateMap<Genre, GenreResponseModel>();
             CreateMap<Tag, TagResponseModel>();
 

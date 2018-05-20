@@ -1,6 +1,7 @@
 ﻿using BookSpace.Data;
 using BookSpace.Data.Contracts;
 using BookSpace.Factories;
+using BookSpace.Factories.ResponseModels;
 using BookSpace.Models;
 using BookSpace.Repositories;
 using BookSpace.Repositories.Contracts;
@@ -13,11 +14,9 @@ using System.Threading.Tasks;
 
 namespace BookSpace.Services
 {
-    public class BookDataServices
+    public class BookServices
     {
         private const string regexPatern = @"[^\w-]+";
-
-
         private readonly BookSpaceContext dbCtx;
         private readonly IBookRepository bookRepository;
         private readonly IGenreRepository genreRepository;
@@ -25,9 +24,10 @@ namespace BookSpace.Services
         private readonly IBookGenreRepository bookGenreRepository;
         private readonly IBookTagRepository bookTagRepository;
         private readonly ICommentRepository commentRepository;
+        private readonly UserManager<ApplicationUser> userManager;
 
-        public BookDataServices(BookSpaceContext dbCtx, IBookRepository bookRepository, IGenreRepository genreRepository, ITagRepository tagRepository,
-            IBookGenreRepository bookGenreRepository, IBookTagRepository bookTagRepository, ICommentRepository commentRepository, UserManager<ApplicationUser> user)
+        public BookServices(BookSpaceContext dbCtx, IBookRepository bookRepository, IGenreRepository genreRepository, ITagRepository tagRepository,
+            IBookGenreRepository bookGenreRepository, IBookTagRepository bookTagRepository, ICommentRepository commentRepository, UserManager<ApplicationUser> userManager)
         {
             this.dbCtx = dbCtx ?? throw new ArgumentNullException(nameof(dbCtx));
             this.bookRepository = bookRepository;
@@ -36,6 +36,7 @@ namespace BookSpace.Services
             this.bookGenreRepository = bookGenreRepository;
             this.bookTagRepository = bookTagRepository;
             this.commentRepository = commentRepository;
+            this.userManager = userManager;
         }
 
         //splitting tags genres response to seperate entities
@@ -58,7 +59,6 @@ namespace BookSpace.Services
             foreach (var genreName in genres)
             {
                 var genre = await this.genreRepository.GetGenreByNameAsync(genreName);
-
                 if (genre == null)
                 {
                     var genreNew = new Genre()
@@ -70,8 +70,8 @@ namespace BookSpace.Services
 
                     await this.genreRepository.AddAsync(genre);
                 }
-                var genreId = genre.GenreId;
 
+                var genreId = genre.GenreId;
                 var bookGenreRecord = new BookGenre()
                 {
                     BookId = bookId,
@@ -87,7 +87,6 @@ namespace BookSpace.Services
             foreach (var tagName in tags)
             {
                 var tag = await this.tagRepository.GetTagByNameAsync(tagName);
-
                 if (tag == null)
                 {
                     var tagNew = new Tag()
@@ -99,28 +98,91 @@ namespace BookSpace.Services
                     tag = tagNew;
                     await this.tagRepository.AddAsync(tag);
                 }
-                var tagId = tag.TagId;
 
+                var tagId = tag.TagId;
                 var bookTagRecord = new BookTag()
                 {
                     BookId = bookId,
                     TagId = tagId
                 };
+
                 await this.bookTagRepository.AddAsync(bookTagRecord);
             }
         }
 
-        public void MatchCommentToUser(string commentId, string userId)
+        public async Task MatchCommentToUser(IEnumerable<Comment> comments)
+        {
+            foreach (var comment in comments)
+            {
+                var user = await this.userManager.FindByIdAsync(comment.UserId);
+                comment.User = user;
+            }
+        }
+
+        public async Task MatchUserToPicture(IEnumerable<CommentResponseModel> comments)
+        {
+            foreach (var comment in comments)
+            {
+                var user = await this.userManager.FindByNameAsync(comment.Author);
+                comment.AuthorPicUrl = user.ProfilePictureUrl;
+            }
+        }
+
+        public async Task CheckUserCommentRights(IEnumerable<CommentResponseModel> comments, string username)
+        {
+            foreach (var comment in comments)
+            {
+                var user = await this.userManager.FindByNameAsync(username);
+                var isAdmin = user.isAdmin;
+                var commentCreator = comment.Author;
+                var isCreator = commentCreator == username;
+                comment.CanEdit = isAdmin || isCreator;
+            }
+        }
+
+        public async Task UpdateBookRating(string id, string rate, bool isNewUser)
+        {
+            var book = await this.bookRepository.GetByIdAsync(id);
+            int ratesCount = book.RatesCount;
+            if (isNewUser)
+            {
+                book.RatesCount++;
+                book.Rating = ((book.Rating * (ratesCount)) + int.Parse(rate)) / (ratesCount + 1);
+            }
+            else
+            {
+                book.Rating = ((book.Rating * (ratesCount - 1)) + int.Parse(rate)) / ratesCount;
+            }
+
+            await this.bookRepository.UpdateAsync(book);
+        }
+
+        public async Task<IEnumerable<Book>> SearchBook(string filterRadio, string filter)
         {
 
-            var user = dbCtx.Users.Where(u => u.Id == userId).SingleOrDefault();
+            List<Book> foundBooks = new List<Book>();
+            if (filterRadio == "default")
+            {
+                foundBooks = new List<Book>(await bookRepository.Search(x => x.Title.Contains(filter) || x.Author.Contains(filter)));
+            }
+            else if (filterRadio == "title")
+            {
+                foundBooks = new List<Book>(await bookRepository.Search(x => x.Title.Contains(filter)));
+            }
+            else if (filterRadio == "author")
+            {
+                foundBooks = new List<Book>(await bookRepository.Search(x => x.Author.Contains(filter)));
+            }
+            else if (filterRadio == "genre")
+            {
+                foundBooks = new List<Book>(await this.genreRepository.GetBooksByGenreNameAsync(filter));
+            }
+            else if (filterRadio == "tag")
+            {
+                foundBooks = new List<Book>(await this.tagRepository.GetBooksByTagAsync(filter));
+            }
 
-            var comment = dbCtx.Comments.Where(cm => cm.CommentId == commentId).SingleOrDefault();
-
-            user.Comments.Add(comment);
-
-            comment.User = user;
-
+            return foundBooks;
         }
     }
 }

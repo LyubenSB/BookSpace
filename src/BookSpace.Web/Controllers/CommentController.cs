@@ -62,6 +62,7 @@ namespace BookSpace.Web.Controllers
             return View("CommentEditView", commentEditModel);
         }
 
+        //TODO:THIS IS TOO BIG
         [HttpPost]
         public async Task<IActionResult> DeleteCommentAsync(string commentId, string bookId, string userId)
         {

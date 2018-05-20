@@ -46,7 +46,6 @@ namespace BookSpace.Web.Controllers
                 return RedirectToAction("Index", "Home");
             }
 
-
             BookState parsedEnum = BookState.Read;
             if (!Enum.TryParse<BookState>(statusEnum, out parsedEnum))
             {

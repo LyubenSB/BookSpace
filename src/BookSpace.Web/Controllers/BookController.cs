@@ -27,7 +27,7 @@ namespace BookSpace.Web.Controllers
         private readonly ICommentRepository commentRepository;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly IFactory<Comment, CommentResponseModel> commentFactory;
-        private readonly BookDataServices dataService;
+        private readonly BookServices bookService;
         private const int recordsOnPageIndex = 30;
         private const int recordsOnPageCategory = 10;
 
@@ -38,7 +38,7 @@ namespace BookSpace.Web.Controllers
                               ICommentRepository commentRepository,
                               UserManager<ApplicationUser> userManager,
                               IFactory<Comment, CommentResponseModel> commentFactory,
-                              BookDataServices dataService,
+                              BookServices bookService,
                               IMapper objectMapper,
                               IApplicationUserRepository applicationUserRepository)
         {
@@ -49,7 +49,7 @@ namespace BookSpace.Web.Controllers
             this.commentRepository = commentRepository;
             this._userManager = userManager;
             this.commentFactory = commentFactory;
-            this.dataService = dataService;
+            this.bookService = bookService;
             this.objectMapper = objectMapper;
             this.applicationUserRepository = applicationUserRepository;
         }
@@ -95,45 +95,23 @@ namespace BookSpace.Web.Controllers
         [ResponseCache(NoStore = true, Duration = 0)]
         public async Task<IActionResult> BookDetails([FromRoute] string id)
         {
+            var currentUser = this.User.Identity.Name;
             var book = await this.bookRepository.GetByIdAsync(id);
             var comments = await this.bookRepository.GetBookCommentsAsync(id);
-
-            foreach (var comment in comments)
-            {
-                var user = await this._userManager.FindByIdAsync(comment.UserId);
-
-                comment.User = user;
-            }
-
+            await this.bookService.MatchCommentToUser(comments);
             var genres = await this.bookRepository.GetBookGenresAsync(id);
             var tags = await this.bookRepository.GetBookTagsAsync(id);
             var bookUser = await this.bookUserRepository.GetAsync(bu => bu.BookId == id);
-
             var bookViewModel = this.objectMapper.Map<Book, BookViewModel>(book);
-            var commentsViewModel = this.objectMapper.Map<IEnumerable<Comment>, IEnumerable<CommentViewModel>>(comments);
-
-            foreach (var comment in commentsViewModel)
-            {
-                var user = await this._userManager.FindByNameAsync(comment.Author);
-
-                comment.AuthorPicUrl = user.ProfilePictureUrl;
-            }
-            
+            var commentObjects = this.objectMapper.Map<IEnumerable<Comment>, IEnumerable<CommentResponseModel>>(comments);
+            await this.bookService.MatchUserToPicture(commentObjects);
 
             if (this.User.Identity.IsAuthenticated)
             {
-                foreach (var comment in commentsViewModel)
-                {
-                    var isAdmin = this.User.IsInRole("Admin");
-
-                    var commentCreatorId = comment.UserId;
-                    var currentUser = await this.applicationUserRepository.GetUserByUsernameAsync(this.User.Identity.Name);
-                    var isCreator = commentCreatorId == currentUser.Id;
-
-                    comment.CanEdit = isAdmin || isCreator;
-                }
+                await this.bookService.CheckUserCommentRights(commentObjects, currentUser);
             }
 
+            var commentsViewModel = this.objectMapper.Map<IEnumerable<CommentResponseModel>, IEnumerable<CommentViewModel>>(commentObjects);
             var propertiesViewModel = new BookPropertiesViewModel
             {
                 Comments = commentsViewModel,
@@ -151,32 +129,19 @@ namespace BookSpace.Web.Controllers
                 IsRated = isRated,
                 UserRating = userRating
             };
+
             return View(singleBookViewModel);
         }
 
         public async Task<IActionResult> UpdateBookRating(string id, string rate, bool isNewUser)
         {
-            var book = await this.bookRepository.GetByIdAsync(id);
+            await this.bookService.UpdateBookRating(id, rate, isNewUser);
 
-            int ratesCount = book.RatesCount;
-
-            if (isNewUser)
-            {
-                book.RatesCount++;
-                book.Rating = ((book.Rating * (ratesCount)) + int.Parse(rate)) / (ratesCount + 1);
-            }
-            else
-            {
-                book.Rating = ((book.Rating * (ratesCount - 1)) + int.Parse(rate)) / ratesCount;
-            }
-
-            await this.bookRepository.UpdateAsync(book);
             return RedirectToAction("BookDetails", "Book", new { id });
         }
 
         public IActionResult GetBookGenres(string bookId)
         {
-            //TODO:Not finished
             var dbModel = this.bookRepository.GetBookGenresAsync(bookId);
             var mappedGenreViewModel = this.objectMapper.Map<GenreViewModel>(dbModel);
 
@@ -186,10 +151,8 @@ namespace BookSpace.Web.Controllers
         [HttpPost]
         public async Task<IActionResult> AddComment(string id, string comment, string userId)
         {
-            //creating response object from input
             var commentResponse = this.commentFactory.Create(new CommentResponseModel()
             {
-                //TODO: NOT WORKING WITH USERID
                 UserId = userId,
                 BookId = id,
                 Content = comment,
@@ -203,27 +166,7 @@ namespace BookSpace.Web.Controllers
 
         public async Task<IActionResult> Search(string filter, string filterRadio = "default")
         {
-            List<Book> foundBooks = new List<Book>();
-            if (filterRadio == "default")
-            {
-                foundBooks = new List<Book>(await bookRepository.Search(x => x.Title.Contains(filter) || x.Author.Contains(filter)));
-            }
-            else if (filterRadio == "title")
-            {
-                foundBooks = new List<Book>(await bookRepository.Search(x => x.Title.Contains(filter)));
-            }
-            else if (filterRadio == "author")
-            {
-                foundBooks = new List<Book>(await bookRepository.Search(x => x.Author.Contains(filter)));
-            }
-            else if (filterRadio == "genre")
-            {
-                foundBooks = new List<Book>(await this.genreRepository.GetBooksByGenreNameAsync(filter));
-            }
-            else if (filterRadio == "tag")
-            {
-                foundBooks = new List<Book>(await this.tagRepository.GetBooksByTagAsync(filter));
-            }
+            var foundBooks = await this.bookService.SearchBook(filterRadio, filter);
 
             var foundBooksViewModel = this.objectMapper.Map<IEnumerable<Book>, IEnumerable<SearchedBookViewModel>>(foundBooks);
 
