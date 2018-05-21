@@ -7,7 +7,6 @@
   <ItemGroup>
     <ProjectReference Include="..\BookSpace.Data\BookSpace.Data.csproj" />
     <ProjectReference Include="..\BookSpace.Factories\BookSpace.Factories.csproj" />
-    <ProjectReference Include="..\BookSpace.Repositories\BookSpace.Repositories.csproj" />
   </ItemGroup>
 
 </Project>

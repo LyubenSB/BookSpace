@@ -2,7 +2,8 @@
 using System.Linq;
 using System.Threading.Tasks;
 using AutoMapper;
-using BookSpace.Repositories.Contracts;
+using BookSpace.Data.Contracts;
+using BookSpace.Models;
 using BookSpace.Web.Models.CommentViewModels;
 using Microsoft.AspNetCore.Mvc;
 
@@ -10,17 +11,21 @@ namespace BookSpace.Web.Controllers
 {
     public class CommentController : Controller
     {
-        private readonly IApplicationUserRepository applicationUserRepository;
-        private readonly ICommentRepository commentRepository;
-        private readonly IBookRepository bookRepository;
+        private readonly IRepository<ApplicationUser> applicationUserRepository;
+        private readonly IRepository<Book> bookRepository;
+        private readonly IRepository<Comment> commentRepository;
         private readonly IMapper objectMapper;
 
-        public CommentController(ICommentRepository commentRepository, IBookRepository bookRepository, IMapper objectMapper, IApplicationUserRepository applicationUserRepository)
+        public CommentController(IRepository<ApplicationUser> applicationUserRepository, 
+                                 IRepository<Book> bookRepository, 
+                                 IRepository<Comment> commentRepository, 
+                                 IMapper objectMapper)
         {
-            this.commentRepository = commentRepository;
-            this.bookRepository = bookRepository;
-            this.objectMapper = objectMapper;
             this.applicationUserRepository = applicationUserRepository;
+            this.bookRepository = bookRepository;
+            this.commentRepository = commentRepository;
+            this.objectMapper = objectMapper;
+      
         }
 
         [HttpPost]
@@ -90,13 +95,14 @@ namespace BookSpace.Web.Controllers
             var commentToDelete = await this.commentRepository.GetAsync(c => c.CommentId == commentId);
             await this.commentRepository.DeleteAsync(commentToDelete);
 
-            var comments = await this.bookRepository.GetBookCommentsAsync(bookId);
+            var comments = await this.bookRepository.GetOneToManyAsync(b => b.BookId == bookId,
+                                                       bg => bg.Comments);
             var commentsViewModel = this.objectMapper.Map<IEnumerable<CommentViewModel>>(comments);
 
             foreach (var comment in commentsViewModel)
             {
                 var commentCreatorId = comment.UserId;
-                var currentUser = await this.applicationUserRepository.GetUserByUsernameAsync(this.User.Identity.Name);
+                var currentUser = await this.applicationUserRepository.GetAsync(u => u.UserName == this.User.Identity.Name);
                 var isCreator = commentCreatorId == currentUser.Id;
 
                 comment.CanEdit = isAdmin || isCreator;

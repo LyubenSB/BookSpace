@@ -2,7 +2,6 @@
 using System.Threading.Tasks;
 using BookSpace.Data.Contracts;
 using BookSpace.Models;
-using BookSpace.Models.Configurations;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -11,9 +10,12 @@ namespace BookSpace.Data
 {
     public class BookSpaceContext : IdentityDbContext<ApplicationUser>, IDbContext
     {
-        public BookSpaceContext(DbContextOptions<BookSpaceContext> options)
+        private readonly IModelConfigurationService modelConfigurationService;
+
+        public BookSpaceContext(DbContextOptions<BookSpaceContext> options, IModelConfigurationService modelConfigurationService)
             : base(options)
         {
+            this.modelConfigurationService = modelConfigurationService;
         }
 
         public DbSet<Book> Books { get; set; }
@@ -47,15 +49,7 @@ namespace BookSpace.Data
         {
             base.OnModelCreating(builder);
 
-            //TODO suspicios
-            builder.ApplyConfiguration(new ApplicationUserConfiguration());
-            builder.ApplyConfiguration(new BookConfiguration());
-            builder.ApplyConfiguration(new BookGenreConfiguration());
-            builder.ApplyConfiguration(new BookUserConfiguration());
-            builder.ApplyConfiguration(new CommentConfiguration());
-            builder.ApplyConfiguration(new GenreConfiguration());
-            builder.ApplyConfiguration(new TagConfiguration());
-            builder.ApplyConfiguration(new BookTagConfiguration());
+            this.modelConfigurationService.ConfigureModels(builder);
         }
 
         public DbSet<TEntity> DbSet<TEntity>() where TEntity : class

@@ -5,11 +5,10 @@ using System.Linq;
 using System.Threading.Tasks;
 using AutoMapper;
 using BookSpace.BlobStorage.Contracts;
+using BookSpace.Data.Contracts;
 using BookSpace.Factories;
 using BookSpace.Factories.ResponseModels;
 using BookSpace.Models;
-using BookSpace.Repositories;
-using BookSpace.Repositories.Contracts;
 using BookSpace.Services;
 using BookSpace.Web.Areas.Admin.Models;
 using BookSpace.Web.Areas.Admin.Models.ApplicationUserViewModels;
@@ -26,10 +25,10 @@ namespace BookSpace.Web.Areas.Admin.Controllers
     [Authorize(Roles = "Admin")]
     public class AdminController : Controller
     {
-        private readonly IApplicationUserRepository userRepository;
-        private readonly IBookRepository bookRepository;
-        private readonly ITagRepository tagRepository;
-        private readonly IGenreRepository genreRepository;
+        private readonly IRepository<ApplicationUser> userRepository;
+        private readonly IRepository<Book> bookRepository;
+        private readonly IRepository<Tag> tagRepository;
+        private readonly IRepository<Genre> genreRepository;
         private readonly IMapper objectMapper;
         private readonly UserManager<ApplicationUser> userManager;
         private readonly BookServices bookServices;
@@ -39,9 +38,16 @@ namespace BookSpace.Web.Areas.Admin.Controllers
         private readonly IFactory<Tag, TagResponseModel> tagFactory;
         const int recordsOnPageIndex = 30;
 
-        public AdminController(IApplicationUserRepository userRepository, IBookRepository bookRepository, ITagRepository tagRepository, IGenreRepository genreRepository,
-            IFactory<Book, BookResponseModel> bookFactory, IFactory<Genre, GenreResponseModel> genreFactory, IFactory<Tag, TagResponseModel> tagFactory,
-            IMapper objectMapper, UserManager<ApplicationUser> userManager, BookServices bookServices, IBlobStorageService blobStorageService)
+        public AdminController(IRepository<ApplicationUser> userRepository, 
+                               IRepository<Book> bookRepository, 
+                               IRepository<Tag> tagRepository,
+                               IRepository<Genre> genreRepository,
+                               IFactory<Book, BookResponseModel> bookFactory, 
+                               IFactory<Genre, GenreResponseModel> genreFactory, 
+                               IFactory<Tag, TagResponseModel> tagFactory,
+                               IMapper objectMapper, UserManager<ApplicationUser> userManager, 
+                               BookServices bookServices, 
+                               IBlobStorageService blobStorageService)
         {
             this.userRepository = userRepository;
             this.bookRepository = bookRepository;
@@ -92,7 +98,8 @@ namespace BookSpace.Web.Areas.Admin.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> EditUser(ApplicationUserViewModel userViewModel)
         {
-            var dbUser = this.userManager.FindByIdAsync(userViewModel.Id).Result;
+            //TODO:Getting user by anything that can be changed is impossible!So I must use Id and therefore ID cannot be changed which is not good!
+            var dbUser = await this.userManager.FindByIdAsync(userViewModel.Id);
 
             var user = this.objectMapper.Map(userViewModel, dbUser);
 
@@ -110,21 +117,19 @@ namespace BookSpace.Web.Areas.Admin.Controllers
             return this.RedirectToAction("AllUsers");
         }
 
-        public IActionResult EditUser(string id)
+        public async Task<IActionResult> EditUserAsync(string id)
         {
-            var dbModel = this.userRepository.GetByIdAsync(id).Result;
+            var dbModel = await this.userRepository.GetByIdAsync(id);
             var userViewModel = objectMapper.Map<ApplicationUserViewModel>(dbModel);
 
             return View(userViewModel);
         }
 
-
-
         [HttpPost("/EditBook/{bookid}")]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> EditBook(DetailedBookViewModel bookViewModel)
         {
-            var dbModel = this.bookRepository.GetByIdAsync(bookViewModel.BookId).Result;
+            var dbModel = await this.bookRepository.GetByIdAsync(bookViewModel.BookId);
 
             var book = this.objectMapper.Map(bookViewModel, dbModel);
 
@@ -134,9 +139,9 @@ namespace BookSpace.Web.Areas.Admin.Controllers
         }
 
         [HttpGet("/EditBook/{bookid}")]
-        public IActionResult EditBook(string bookId)
+        public async Task<IActionResult> EditBookAsync(string bookId)
         {
-            var dbModel = this.bookRepository.GetByIdAsync(bookId).Result;
+            var dbModel = await this.bookRepository.GetByIdAsync(bookId);
 
             var bookViewModel = objectMapper.Map<DetailedBookViewModel>(dbModel);
 
@@ -145,9 +150,9 @@ namespace BookSpace.Web.Areas.Admin.Controllers
 
         public async Task<IActionResult> DeleteBook(ListBookViewModel bookViewModel)
         {
-            var dbModel = this.bookRepository.GetByIdAsync(bookViewModel.BookId).Result;
+            var dbModel = await this.bookRepository.GetByIdAsync(bookViewModel.BookId);
 
-            await this.bookRepository.RemoveBookAync(dbModel.BookId);
+            await this.bookRepository.DeleteAsync(dbModel);
 
             return this.RedirectToAction("AllBooks");
         }

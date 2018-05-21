@@ -1,9 +1,10 @@
 ﻿using AutoMapper;
+using BookSpace.Data.Contracts;
 using BookSpace.Factories;
 using BookSpace.Factories.ResponseModels;
 using BookSpace.Models;
-using BookSpace.Repositories.Contracts;
 using BookSpace.Services;
+using BookSpace.Web.Logic.Interfaces;
 using BookSpace.Web.Models.BookViewModels;
 using BookSpace.Web.Models.CommentViewModels;
 using BookSpace.Web.Models.GenreViewModels;
@@ -18,29 +19,32 @@ namespace BookSpace.Web.Controllers
 {
     public class BookController : Controller
     {
-        private readonly IBookRepository bookRepository;
+        //Repositories 
+        private readonly IRepository<ApplicationUser> applicationUserRepository;
+        private readonly IRepository<Book> bookRepository;
+        private readonly IRepository<Genre> genreRepository;
+        private readonly IRepository<Tag> tagRepository;
+        private readonly IRepository<Comment> commentRepository;
+        private readonly IRepository<BookUser> bookUserRepository;
         private readonly IMapper objectMapper;
-        private readonly IApplicationUserRepository applicationUserRepository;
-        private readonly IGenreRepository genreRepository;
-        private readonly ITagRepository tagRepository;
-        private readonly IBookUserRepository bookUserRepository;
-        private readonly ICommentRepository commentRepository;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly IFactory<Comment, CommentResponseModel> commentFactory;
         private readonly BookServices bookService;
+        private readonly ISearchFactory searchFactory;
         private const int recordsOnPageIndex = 30;
         private const int recordsOnPageCategory = 10;
 
-        public BookController(IBookRepository bookRepository,
-                              IGenreRepository genreRepository,
-                              ITagRepository tagRepository,
-                              IBookUserRepository bookUserRepository,
-                              ICommentRepository commentRepository,
+        public BookController(IRepository<ApplicationUser> applicationUserRepository,
+                              IRepository<Book> bookRepository,
+                              IRepository<Genre> genreRepository,
+                              IRepository<Tag> tagRepository,
+                              IRepository<Comment> commentRepository,
+                              IRepository<BookUser> bookUserRepository,
                               UserManager<ApplicationUser> userManager,
                               IFactory<Comment, CommentResponseModel> commentFactory,
                               BookServices bookService,
-                              IMapper objectMapper,
-                              IApplicationUserRepository applicationUserRepository)
+                              IMapper objectMapper,              
+                              ISearchFactory searchFactory)
         {
             this.bookRepository = bookRepository;
             this.genreRepository = genreRepository;
@@ -51,7 +55,7 @@ namespace BookSpace.Web.Controllers
             this.commentFactory = commentFactory;
             this.bookService = bookService;
             this.objectMapper = objectMapper;
-            this.applicationUserRepository = applicationUserRepository;
+            this.searchFactory = searchFactory;
         }
 
         public async Task<IActionResult> Index(int page = 1)
@@ -97,10 +101,19 @@ namespace BookSpace.Web.Controllers
         {
             var currentUser = this.User.Identity.Name;
             var book = await this.bookRepository.GetByIdAsync(id);
-            var comments = await this.bookRepository.GetBookCommentsAsync(id);
+            var comments = await this.bookRepository.GetOneToManyAsync(b => b.BookId == id,
+                                                       bg => bg.Comments);
+
             await this.bookService.MatchCommentToUser(comments);
-            var genres = await this.bookRepository.GetBookGenresAsync(id);
-            var tags = await this.bookRepository.GetBookTagsAsync(id);
+
+            var genres = await this.bookRepository.GetManyToManyAsync(b => b.BookId == id,
+                                                       bg => bg.BookGenres,
+                                                       g => g.Genre);
+
+            var tags = await this.bookRepository.GetManyToManyAsync(b => b.BookId == id,
+                                                       bg => bg.BookTags,
+                                                       g => g.Tag);
+
             var bookUser = await this.bookUserRepository.GetAsync(bu => bu.BookId == id);
             var bookViewModel = this.objectMapper.Map<Book, BookViewModel>(book);
             var commentObjects = this.objectMapper.Map<IEnumerable<Comment>, IEnumerable<CommentResponseModel>>(comments);
@@ -142,7 +155,10 @@ namespace BookSpace.Web.Controllers
 
         public IActionResult GetBookGenres(string bookId)
         {
-            var dbModel = this.bookRepository.GetBookGenresAsync(bookId);
+            var dbModel = this.bookRepository.GetManyToManyAsync(b => b.BookId == bookId,
+                                                       bg => bg.BookGenres,
+                                                       g => g.Genre);
+
             var mappedGenreViewModel = this.objectMapper.Map<GenreViewModel>(dbModel);
 
             return View();
@@ -164,10 +180,9 @@ namespace BookSpace.Web.Controllers
             return Ok();
         }
 
-        public async Task<IActionResult> Search(string filter, string filterRadio = "default")
+        public async Task<IActionResult> Search(string filter, string filterRadio = "Default")
         {
-            var foundBooks = await this.bookService.SearchBook(filterRadio, filter);
-
+            var foundBooks = await this.searchFactory.GetSearchedBooks(filter, filterRadio);
             var foundBooksViewModel = this.objectMapper.Map<IEnumerable<Book>, IEnumerable<SearchedBookViewModel>>(foundBooks);
 
             return View("Search", foundBooksViewModel);
@@ -202,7 +217,11 @@ namespace BookSpace.Web.Controllers
 
         private async Task<IEnumerable<BookByCategoryViewModel>> GetBooksByCategoryPage(string genreId, int page)
         {
-            var books = await this.genreRepository.GetBooksByGenrePageAsync(genreId, page, recordsOnPageCategory);
+            var books = await this.genreRepository.GetPagedManyToMany(g => g.GenreId == genreId,
+                                                      b => b.GenreBooks,
+                                                      x => x.Book,
+                                                      page, recordsOnPageCategory);
+
             var booksViewModel = this.objectMapper.Map<IEnumerable<Book>, IEnumerable<BookByCategoryViewModel>>(books.Results);
             return booksViewModel;
         }

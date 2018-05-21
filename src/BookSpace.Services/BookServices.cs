@@ -3,8 +3,6 @@ using BookSpace.Data.Contracts;
 using BookSpace.Factories;
 using BookSpace.Factories.ResponseModels;
 using BookSpace.Models;
-using BookSpace.Repositories;
-using BookSpace.Repositories.Contracts;
 using Microsoft.AspNetCore.Identity;
 using System;
 using System.Collections.Generic;
@@ -17,26 +15,31 @@ namespace BookSpace.Services
     public class BookServices
     {
         private const string regexPatern = @"[^\w-]+";
-        private readonly BookSpaceContext dbCtx;
-        private readonly IBookRepository bookRepository;
-        private readonly IGenreRepository genreRepository;
-        private readonly ITagRepository tagRepository;
-        private readonly IBookGenreRepository bookGenreRepository;
-        private readonly IBookTagRepository bookTagRepository;
-        private readonly ICommentRepository commentRepository;
+
+        private readonly IRepository<Genre> genreRepository;
+        private readonly IRepository<Book> bookRepository;
+        private readonly IRepository<Tag> tagRepository;
+        private readonly IRepository<BookGenre> bookGenreRepository;
+        private readonly IRepository<BookTag> bookTagRepository;
+        private readonly IRepository<Comment> commentRepository;
         private readonly UserManager<ApplicationUser> userManager;
 
-        public BookServices(BookSpaceContext dbCtx, IBookRepository bookRepository, IGenreRepository genreRepository, ITagRepository tagRepository,
-            IBookGenreRepository bookGenreRepository, IBookTagRepository bookTagRepository, ICommentRepository commentRepository, UserManager<ApplicationUser> userManager)
+        public BookServices(IRepository<Genre> genreRepository,
+                                IRepository<Book> bookRepository,
+                                IRepository<Tag> tagRepository,
+                                IRepository<BookGenre> bookGenreRepository,
+                                IRepository<BookTag> bookTagRepository,
+                                IRepository<Comment> commentRepository,
+                                UserManager<ApplicationUser> userManager)
         {
-            this.dbCtx = dbCtx ?? throw new ArgumentNullException(nameof(dbCtx));
-            this.bookRepository = bookRepository;
             this.genreRepository = genreRepository;
+            this.bookRepository = bookRepository;
             this.tagRepository = tagRepository;
             this.bookGenreRepository = bookGenreRepository;
             this.bookTagRepository = bookTagRepository;
             this.commentRepository = commentRepository;
             this.userManager = userManager;
+            this.commentRepository = commentRepository;
         }
 
         //splitting tags genres response to seperate entities
@@ -58,7 +61,8 @@ namespace BookSpace.Services
         {
             foreach (var genreName in genres)
             {
-                var genre = await this.genreRepository.GetGenreByNameAsync(genreName);
+                var genre = await this.genreRepository.GetAsync(g => g.Name == genreName);
+
                 if (genre == null)
                 {
                     var genreNew = new Genre()
@@ -86,7 +90,7 @@ namespace BookSpace.Services
         {
             foreach (var tagName in tags)
             {
-                var tag = await this.tagRepository.GetTagByNameAsync(tagName);
+                var tag = await this.tagRepository.GetAsync(t => t.Value == tagName);
                 if (tag == null)
                 {
                     var tagNew = new Tag()
@@ -157,32 +161,32 @@ namespace BookSpace.Services
             await this.bookRepository.UpdateAsync(book);
         }
 
-        public async Task<IEnumerable<Book>> SearchBook(string filterRadio, string filter)
-        {
+        //public async Task<IEnumerable<Book>> SearchBook(string filterRadio, string filter)
+        //{
 
-            List<Book> foundBooks = new List<Book>();
-            if (filterRadio == "default")
-            {
-                foundBooks = new List<Book>(await bookRepository.Search(x => x.Title.Contains(filter) || x.Author.Contains(filter)));
-            }
-            else if (filterRadio == "title")
-            {
-                foundBooks = new List<Book>(await bookRepository.Search(x => x.Title.Contains(filter)));
-            }
-            else if (filterRadio == "author")
-            {
-                foundBooks = new List<Book>(await bookRepository.Search(x => x.Author.Contains(filter)));
-            }
-            else if (filterRadio == "genre")
-            {
-                foundBooks = new List<Book>(await this.genreRepository.GetBooksByGenreNameAsync(filter));
-            }
-            else if (filterRadio == "tag")
-            {
-                foundBooks = new List<Book>(await this.tagRepository.GetBooksByTagAsync(filter));
-            }
+        //    List<Book> foundBooks = new List<Book>();
+        //    if (filterRadio == "default")
+        //    {
+        //        foundBooks = new List<Book>(await bookRepository.Search(x => x.Title.Contains(filter) || x.Author.Contains(filter)));
+        //    }
+        //    else if (filterRadio == "title")
+        //    {
+        //        foundBooks = new List<Book>(await bookRepository.Search(x => x.Title.Contains(filter)));
+        //    }
+        //    else if (filterRadio == "author")
+        //    {
+        //        foundBooks = new List<Book>(await bookRepository.Search(x => x.Author.Contains(filter)));
+        //    }
+        //    else if (filterRadio == "genre")
+        //    {
+        //        foundBooks = new List<Book>(await this.genreRepository.GetBooksByGenreNameAsync(filter));
+        //    }
+        //    else if (filterRadio == "tag")
+        //    {
+        //        foundBooks = new List<Book>(await this.tagRepository.GetBooksByTagAsync(filter));
+        //    }
 
-            return foundBooks;
-        }
+        //    return foundBooks;
+        //}
     }
 }

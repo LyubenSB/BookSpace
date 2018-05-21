@@ -6,24 +6,23 @@ using System.Threading.Tasks;
 using BookSpace.Models;
 using Microsoft.AspNetCore.Mvc;
 using BookSpace.Web.Models;
-using BookSpace.Repositories.Contracts;
 using BookSpace.Web.Models.BookViewModels;
 using AutoMapper;
-using BookSpace.Repositories;
 using BookSpace.Web.Models.GenreViewModels;
+using BookSpace.Data.Contracts;
 
 namespace BookSpace.Web.Controllers
 {
     public class HomeController : Controller
     {
-        private readonly IBookRepository bookRepository;
-        private readonly IGenreRepository genreRepository;
-        private readonly ITagRepository tagRepository;
+        private readonly IRepository<Book> bookRepository;
+        private readonly IRepository<Genre> genreRepository;
+        private readonly IRepository<Tag> tagRepository;
         private readonly IMapper objectMapper;
         
-        public HomeController(IBookRepository bookRepository,
-                              IGenreRepository genreRepository,
-                              ITagRepository tagRepository,
+        public HomeController(IRepository<Book> bookRepository,
+                              IRepository<Genre> genreRepository,
+                              IRepository<Tag> tagRepository,
                               IMapper mapper)
         {
             this.bookRepository = bookRepository;

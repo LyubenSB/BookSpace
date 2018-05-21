@@ -33,6 +33,8 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\BookSpace.BlobStorage\BookSpace.BlobStorage.csproj" />
+    <ProjectReference Include="..\BookSpace.Factories\BookSpace.Factories.csproj" />
     <ProjectReference Include="..\BookSpace.Models\BookSpace.Models.csproj" />
   </ItemGroup>
 

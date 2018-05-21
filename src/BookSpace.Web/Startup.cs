@@ -8,8 +8,6 @@ using BookSpace.Web.Services;
 using BookSpace.Data;
 using BookSpace.Data.Contracts;
 using BookSpace.Models;
-using BookSpace.Repositories;
-using BookSpace.Repositories.Contracts;
 using Microsoft.Extensions.Logging;
 using AutoMapper;
 using BookSpace.BlobStorage.Contracts;
@@ -21,7 +19,10 @@ using BookSpace.Factories.ResponseModels;
 using BookSpace.Services;
 using BookSpace.Web.Services.SmtpService;
 using BookSpace.Web.Services.SmtpService.Contract;
-
+using BookSpace.Factories.DTO;
+using BookSpace.Web.Logic.Interfaces;
+using BookSpace.Web.Logic.Core.Strategy;
+using Neleus.DependencyInjection.Extensions;
 namespace BookSpace.Web
 {
     public class Startup
@@ -46,21 +47,17 @@ namespace BookSpace.Web
 
             services.AddScoped<IDbContext>(provider => provider.GetService<BookSpaceContext>());
 
+            services.AddScoped<IModelConfigurationService, ModelConfigurationService>();
+
             services.AddTransient<IEmailSender, EmailSender>();
             services.AddTransient<IDatabaseSeedService, DatabaseSeedService>();
+            services.AddTransient<IDatabaseMigrateService, DatabaseMigrateService>();
             services.AddTransient<ApplicationUser>();
+
 
             //Repositories
 
             services.AddScoped(typeof(IRepository<>), typeof(BaseRepository<>));
-            services.AddScoped<IApplicationUserRepository, ApplicationUserRepository>();
-            services.AddScoped<IBookRepository, BookRepository>();
-            services.AddScoped<IGenreRepository, GenreRepository>();
-            services.AddScoped<ITagRepository, TagRepository>();
-            services.AddScoped<IBookUserRepository, BookUserRepository>();
-            services.AddScoped<IBookTagRepository, BookTagRepository>();
-            services.AddScoped<IBookGenreRepository, BookGenreRepository>();
-            services.AddScoped<ICommentRepository, CommentRepository>();
 
             //bookservices
             services.AddScoped<BookServices>();
@@ -70,7 +67,7 @@ namespace BookSpace.Web
             services.AddScoped<IFactory<Genre, GenreResponseModel>, GenreFactory>();
             services.AddScoped<IFactory<Tag, TagResponseModel>, TagFactory>();
             services.AddScoped<IFactory<Comment, CommentResponseModel>, CommentFactory>();
-
+            services.AddScoped<IFactory<ApplicationUser, UserCreateDto>, ApplicationUserFactory>();
 
             //Blob Storage
             services.AddSingleton<BlobStorageInfo>(
@@ -85,9 +82,31 @@ namespace BookSpace.Web
                     .Get<FaceServiceStorageInfo>());
 
             //Smtp service
-            services.AddSingleton<ISmtpSender,SmtpSender>();
+            services.AddSingleton<ISmtpSender, SmtpSender>();
 
-            
+            //Facebook
+            services.AddAuthentication().AddFacebook(facebookOptions =>
+            {
+                facebookOptions.AppId = Configuration["AppId"];
+                facebookOptions.AppSecret = Configuration["AppSecret"];
+            });
+
+            // HTTP Service
+            services.AddSingleton<IHttpService, HttpService>();
+            //Search
+            services.AddScoped<ISearchFactory, SearchFactory>();
+            services.AddScoped<ISearchStrategyFactory, SearchStrategyFactory>();
+            services.AddTransient<DefaultSearchStrategy>();
+            services.AddTransient<TitleSearchStrategy>();
+            services.AddTransient<AuthorSearchStrategy>();
+            services.AddTransient<GenreSearchStrategy>();
+            services.AddTransient<TagSearchStrategy>();
+            services.AddByName<ISearchStrategy>()
+                .Add<DefaultSearchStrategy>("Default")
+                .Add<TitleSearchStrategy>("Title")
+                .Add<AuthorSearchStrategy>("Author")
+                .Add<GenreSearchStrategy>("Genre")
+                .Add<TagSearchStrategy>("Tag").Build();
 
             services.AddAutoMapper();
             services.AddMvc();

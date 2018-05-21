@@ -21,7 +21,11 @@ namespace BookSpace.Web
             using (var scope = host.Services.CreateScope())
             {
                 var services = scope.ServiceProvider;
-                var seedService = services.GetRequiredService<IDatabaseSeedService>();
+
+                IDatabaseMigrateService migrateService = services.GetRequiredService<IDatabaseMigrateService>();
+                migrateService.Migrate();
+
+                IDatabaseSeedService seedService = services.GetRequiredService<IDatabaseSeedService>();
                 seedService.SeedDataAsync().GetAwaiter().GetResult();
             }
             host.Run();
