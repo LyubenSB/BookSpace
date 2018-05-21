@@ -127,7 +127,7 @@ namespace BookSpace.Services
                 comment.User = user;
             }
         }
-
+            
         public async Task MatchUserToPicture(IEnumerable<CommentResponseModel> comments)
         {
             foreach (var comment in comments)

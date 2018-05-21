@@ -113,13 +113,6 @@ namespace BookSpace.Web.Controllers
             var comments = await this.bookRepository.GetOneToManyAsync(b => b.BookId == id,
                                                        bg => bg.Comments);
 
-            //foreach (var comment in comments)
-            //{
-            //    var user = await this._userManager.FindByIdAsync(comment.UserId);
-
-            //    comment.User = user;
-            //}
-
             await this.dataService.MatchCommentToUser(comments);
 
             var genres = await this.bookRepository.GetManyToManyAsync(b => b.BookId == id,
@@ -133,30 +126,11 @@ namespace BookSpace.Web.Controllers
             var bookUser = await this.bookUserRepository.GetByExpressionAsync(bu => bu.BookId == id);
             var bookViewModel = this.objectMapper.Map<Book, BookViewModel>(book);
 
-            //TODO:MAtch user to picture
-            //foreach (var comment in commentsViewModel)
-            //{
-            //    var user = await this._userManager.FindByNameAsync(comment.Author);
-
-            //    comment.AuthorPicUrl = user.ProfilePictureUrl;
-            //}
-
             var commentObjects = this.objectMapper.Map<IEnumerable<Comment>, IEnumerable<CommentResponseModel>>(comments);
             await this.dataService.MatchUserToPicture(commentObjects);
 
             if (this.User.Identity.IsAuthenticated)
             {
-                //foreach (var comment in commentsViewModel)
-                //{
-                //    var isAdmin = this.User.IsInRole("Admin");
-
-                //    var commentCreatorId = comment.UserId;
-                //    var currentUser = await this.applicationUserRepository.GetByExpressionAsync(u => u.UserName == this.User.Identity.Name);
-                //    var isCreator = commentCreatorId == currentUser.Id;
-
-                //    comment.CanEdit = isAdmin || isCreator;
-                //}
-
                 await this.dataService.CheckUserCommentRights(commentObjects, currentUser);
             }
 
@@ -185,21 +159,6 @@ namespace BookSpace.Web.Controllers
         public async Task<IActionResult> UpdateBookRating(string id, string rate, bool isNewUser)
         {
             var book = await this.bookRepository.GetByIdAsync(id);
-
-            //int ratesCount = book.RatesCount;
-
-            //if (isNewUser)
-            //{
-            //    book.RatesCount++;
-            //    book.Rating = ((book.Rating * (ratesCount)) + int.Parse(rate)) / (ratesCount + 1);
-            //}
-            //else
-            //{
-            //    book.Rating = ((book.Rating * (ratesCount - 1)) + int.Parse(rate)) / ratesCount;
-            //}
-
-            //await this.bookUpdateService.UpdateAsync(book);
-
             await this.dataService.UpdateBookRating(id, rate, isNewUser);
             return RedirectToAction("BookDetails", "Book", new { id });
         }
