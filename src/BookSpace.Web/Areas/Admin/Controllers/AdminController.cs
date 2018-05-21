@@ -38,18 +38,18 @@ namespace BookSpace.Web.Areas.Admin.Controllers
         private readonly IFactory<Tag, TagResponseModel> tagFactory;
         const int recordsOnPageIndex = 30;
 
-        public AdminController(IRepository<ApplicationUser> userRepository, 
-                               IRepository<Book> bookRepository, 
+        public AdminController(IRepository<ApplicationUser> userRepository,
+                               IRepository<Book> bookRepository,
                                IRepository<Tag> tagRepository,
                                IRepository<Genre> genreRepository,
                                IUpdateService<Book> bookUpdateService,
                                IUpdateService<Genre> genreUpdateService,
                                IUpdateService<Tag> tagUpdateService,
-                               IFactory<Book, BookResponseModel> bookFactory, 
-                               IFactory<Genre, GenreResponseModel> genreFactory, 
+                               IFactory<Book, BookResponseModel> bookFactory,
+                               IFactory<Genre, GenreResponseModel> genreFactory,
                                IFactory<Tag, TagResponseModel> tagFactory,
-                               IMapper objectMapper, UserManager<ApplicationUser> userManager, 
-                               BookDataServices bookServices, 
+                               IMapper objectMapper, UserManager<ApplicationUser> userManager,
+                               BookDataServices bookServices,
                                IBlobStorageService blobStorageService)
         {
             this.userRepository = userRepository;
@@ -70,14 +70,7 @@ namespace BookSpace.Web.Areas.Admin.Controllers
         public IActionResult AllUsers()
         {
             var users = this.userRepository.GetAllAsync().Result.ToList();
-
-            var userViewModels = new List<ApplicationUserViewModel>();
-
-            foreach (var user in users)
-            {
-                userViewModels.Add(this.objectMapper.Map<ApplicationUserViewModel>(user));
-            }
-
+            var userViewModels = this.objectMapper.Map<IEnumerable<ApplicationUser>, IEnumerable<ApplicationUserViewModel>>(users);
             return View(userViewModels);
         }
 
@@ -108,7 +101,6 @@ namespace BookSpace.Web.Areas.Admin.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> EditUser(ApplicationUserViewModel userViewModel)
         {
-            //TODO:Getting user by anything that can be changed is impossible!So I must use Id and therefore ID cannot be changed which is not good!
             var dbModel = await this.userManager.FindByIdAsync(userViewModel.Id);
 
             var user = this.objectMapper.Map(userViewModel, dbModel);
@@ -184,16 +176,16 @@ namespace BookSpace.Web.Areas.Admin.Controllers
             if (ModelState.IsValid)
             {
 
-            var bookResponse = this.objectMapper.Map<BookResponseModel>(bookViewModel);
-            var book = this.bookFactory.Create(bookResponse);
+                var bookResponse = this.objectMapper.Map<BookResponseModel>(bookViewModel);
+                var book = this.bookFactory.Create(bookResponse);
 
-            await this.bookUpdateService.AddAsync(book);
+                await this.bookUpdateService.AddAsync(book);
 
-            var genres = this.bookServices.FormatStringResponse(bookViewModel.Genres);
-            var tags = this.bookServices.FormatStringResponse(bookViewModel.Tags);
+                var genres = this.bookServices.FormatStringResponse(bookViewModel.Genres);
+                var tags = this.bookServices.FormatStringResponse(bookViewModel.Tags);
 
-            await this.bookServices.MatchGenresToBookAsync(genres, book.BookId);
-            await this.bookServices.MatchTagToBookAsync(tags, book.BookId);
+                await this.bookServices.MatchGenresToBookAsync(genres, book.BookId);
+                await this.bookServices.MatchTagToBookAsync(tags, book.BookId);
             }
 
             return RedirectToAction("CreateBook");

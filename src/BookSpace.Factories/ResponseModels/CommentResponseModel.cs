@@ -13,5 +13,11 @@ namespace BookSpace.Factories.ResponseModels
         public string Content { get; set; }
 
         public DateTime Date { get; set; }
+
+        public string Author { get; set; }
+
+        public string AuthorPicUrl { get; set; }
+
+        public bool CanEdit { get; set; }
     }
 }

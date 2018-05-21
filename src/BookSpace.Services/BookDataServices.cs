@@ -1,6 +1,7 @@
 ﻿using BookSpace.Data;
 using BookSpace.Data.Contracts;
 using BookSpace.Factories;
+using BookSpace.Factories.ResponseModels;
 using BookSpace.Models;
 using Microsoft.AspNetCore.Identity;
 using System;
@@ -14,33 +15,36 @@ namespace BookSpace.Services
     public class BookDataServices
     {
         private const string regexPatern = @"[^\w-]+";
-
-
-        private readonly BookSpaceContext dbCtx;
+        private readonly IRepository<Book> bookRepository;
         private readonly IRepository<Genre> genreRepository;
         private readonly IRepository<Tag> tagRepository;
-
+        private readonly IUpdateService<Book> bookUpdateService;
         private readonly IUpdateService<Genre> genreUpdateService;
         private readonly IUpdateService<Tag> tagUpdateService;
         private readonly IUpdateService<BookGenre> bookGenreUpdateService;
         private readonly IUpdateService<BookTag> bookTagUpdateService;
+        private readonly UserManager<ApplicationUser> userManager;
 
-        public BookDataServices(BookSpaceContext dbCtx,
+        public BookDataServices(
+                                IRepository<Book> bookRepository,
                                 IRepository<Genre> genreRepository,
                                 IRepository<Tag> tagRepository,
+                                IUpdateService<Book> bookUpdateService,
                                 IUpdateService<Genre> genreUpdateService,
                                 IUpdateService<Tag> tagUpdateService,
                                 IUpdateService<BookGenre> bookGenreUpdateService,
                                 IUpdateService<BookTag> bookTagUpdateService,
-                                UserManager<ApplicationUser> user)
+                                UserManager<ApplicationUser> userManager)
         {
-            this.dbCtx = dbCtx ?? throw new ArgumentNullException(nameof(dbCtx));
+            this.bookRepository = bookRepository;
             this.genreRepository = genreRepository;
             this.tagRepository = tagRepository;
+            this.bookUpdateService = bookUpdateService;
             this.genreUpdateService = genreUpdateService;
             this.tagUpdateService = tagUpdateService;
             this.bookGenreUpdateService = bookGenreUpdateService;
             this.bookTagUpdateService = bookTagUpdateService;
+            this.userManager = userManager;
         }
 
         //splitting tags genres response to seperate entities
@@ -115,17 +119,51 @@ namespace BookSpace.Services
             }
         }
 
-        public void MatchCommentToUser(string commentId, string userId)
+        public async Task MatchCommentToUser(IEnumerable<Comment> comments)
         {
+            foreach (var comment in comments)
+            {
+                var user = await this.userManager.FindByIdAsync(comment.UserId);
+                comment.User = user;
+            }
+        }
 
-            var user = dbCtx.Users.Where(u => u.Id == userId).SingleOrDefault();
+        public async Task MatchUserToPicture(IEnumerable<CommentResponseModel> comments)
+        {
+            foreach (var comment in comments)
+            {
+                var user = await this.userManager.FindByNameAsync(comment.Author);
+                comment.AuthorPicUrl = user.ProfilePictureUrl;
+            }
+        }
 
-            var comment = dbCtx.Comments.Where(cm => cm.CommentId == commentId).SingleOrDefault();
+        public async Task CheckUserCommentRights(IEnumerable<CommentResponseModel> comments, string username)
+        {
+            foreach (var comment in comments)
+            {
+                var user = await this.userManager.FindByNameAsync(username);
+                var isAdmin = user.isAdmin;
+                var commentCreator = comment.Author;
+                var isCreator = commentCreator == username;
+                comment.CanEdit = isAdmin || isCreator;
+            }
+        }
 
-            user.Comments.Add(comment);
+        public async Task UpdateBookRating(string id, string rate, bool isNewUser)
+        {
+            var book = await this.bookRepository.GetByIdAsync(id);
+            int ratesCount = book.RatesCount;
+            if (isNewUser)
+            {
+                book.RatesCount++;
+                book.Rating = ((book.Rating * (ratesCount)) + int.Parse(rate)) / (ratesCount + 1);
+            }
+            else
+            {
+                book.Rating = ((book.Rating * (ratesCount - 1)) + int.Parse(rate)) / ratesCount;
+            }
 
-            comment.User = user;
-
+            await this.bookUpdateService.UpdateAsync(book);
         }
     }
 }

@@ -49,7 +49,7 @@ namespace BookSpace.Web.Controllers
                               UserManager<ApplicationUser> userManager,
                               IFactory<Comment, CommentResponseModel> commentFactory,
                               BookDataServices dataService,
-                              IMapper objectMapper,              
+                              IMapper objectMapper,
                               ISearchFactory searchFactory)
         {
             this.applicationUserRepository = applicationUserRepository;
@@ -108,16 +108,19 @@ namespace BookSpace.Web.Controllers
         [ResponseCache(NoStore = true, Duration = 0)]
         public async Task<IActionResult> BookDetails([FromRoute] string id)
         {
+            var currentUser = this.User.Identity.Name;
             var book = await this.bookRepository.GetByIdAsync(id);
             var comments = await this.bookRepository.GetOneToManyAsync(b => b.BookId == id,
                                                        bg => bg.Comments);
 
-            foreach (var comment in comments)
-            {
-                var user = await this._userManager.FindByIdAsync(comment.UserId);
+            //foreach (var comment in comments)
+            //{
+            //    var user = await this._userManager.FindByIdAsync(comment.UserId);
 
-                comment.User = user;
-            }
+            //    comment.User = user;
+            //}
+
+            await this.dataService.MatchCommentToUser(comments);
 
             var genres = await this.bookRepository.GetManyToManyAsync(b => b.BookId == id,
                                                        bg => bg.BookGenres,
@@ -128,31 +131,36 @@ namespace BookSpace.Web.Controllers
                                                        g => g.Tag);
 
             var bookUser = await this.bookUserRepository.GetByExpressionAsync(bu => bu.BookId == id);
-
             var bookViewModel = this.objectMapper.Map<Book, BookViewModel>(book);
-            var commentsViewModel = this.objectMapper.Map<IEnumerable<Comment>, IEnumerable<CommentViewModel>>(comments);
 
-            foreach (var comment in commentsViewModel)
-            {
-                var user = await this._userManager.FindByNameAsync(comment.Author);
+            //TODO:MAtch user to picture
+            //foreach (var comment in commentsViewModel)
+            //{
+            //    var user = await this._userManager.FindByNameAsync(comment.Author);
 
-                comment.AuthorPicUrl = user.ProfilePictureUrl;
-            }
-            
+            //    comment.AuthorPicUrl = user.ProfilePictureUrl;
+            //}
+
+            var commentObjects = this.objectMapper.Map<IEnumerable<Comment>, IEnumerable<CommentResponseModel>>(comments);
+            await this.dataService.MatchUserToPicture(commentObjects);
 
             if (this.User.Identity.IsAuthenticated)
             {
-                foreach (var comment in commentsViewModel)
-                {
-                    var isAdmin = this.User.IsInRole("Admin");
+                //foreach (var comment in commentsViewModel)
+                //{
+                //    var isAdmin = this.User.IsInRole("Admin");
 
-                    var commentCreatorId = comment.UserId;
-                    var currentUser = await this.applicationUserRepository.GetByExpressionAsync(u => u.UserName == this.User.Identity.Name);
-                    var isCreator = commentCreatorId == currentUser.Id;
+                //    var commentCreatorId = comment.UserId;
+                //    var currentUser = await this.applicationUserRepository.GetByExpressionAsync(u => u.UserName == this.User.Identity.Name);
+                //    var isCreator = commentCreatorId == currentUser.Id;
 
-                    comment.CanEdit = isAdmin || isCreator;
-                }
+                //    comment.CanEdit = isAdmin || isCreator;
+                //}
+
+                await this.dataService.CheckUserCommentRights(commentObjects, currentUser);
             }
+
+            var commentsViewModel = this.objectMapper.Map<IEnumerable<CommentResponseModel>, IEnumerable<CommentViewModel>>(commentObjects);
 
             var propertiesViewModel = new BookPropertiesViewModel
             {
@@ -178,25 +186,26 @@ namespace BookSpace.Web.Controllers
         {
             var book = await this.bookRepository.GetByIdAsync(id);
 
-            int ratesCount = book.RatesCount;
+            //int ratesCount = book.RatesCount;
 
-            if (isNewUser)
-            {
-                book.RatesCount++;
-                book.Rating = ((book.Rating * (ratesCount)) + int.Parse(rate)) / (ratesCount + 1);
-            }
-            else
-            {
-                book.Rating = ((book.Rating * (ratesCount - 1)) + int.Parse(rate)) / ratesCount;
-            }
+            //if (isNewUser)
+            //{
+            //    book.RatesCount++;
+            //    book.Rating = ((book.Rating * (ratesCount)) + int.Parse(rate)) / (ratesCount + 1);
+            //}
+            //else
+            //{
+            //    book.Rating = ((book.Rating * (ratesCount - 1)) + int.Parse(rate)) / ratesCount;
+            //}
 
-            await this.bookUpdateService.UpdateAsync(book);
+            //await this.bookUpdateService.UpdateAsync(book);
+
+            await this.dataService.UpdateBookRating(id, rate, isNewUser);
             return RedirectToAction("BookDetails", "Book", new { id });
         }
 
         public IActionResult GetBookGenres(string bookId)
         {
-            //TODO:Not finished
             var dbModel = this.bookRepository.GetManyToManyAsync(b => b.BookId == bookId,
                                                        bg => bg.BookGenres,
                                                        g => g.Genre);
@@ -209,10 +218,8 @@ namespace BookSpace.Web.Controllers
         [HttpPost]
         public async Task<IActionResult> AddComment(string id, string comment, string userId)
         {
-            //creating response object from input
             var commentResponse = this.commentFactory.Create(new CommentResponseModel()
             {
-                //TODO: NOT WORKING WITH USERID
                 UserId = userId,
                 BookId = id,
                 Content = comment,
