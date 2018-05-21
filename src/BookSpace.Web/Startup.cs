@@ -56,11 +56,11 @@ namespace BookSpace.Web
 
 
             //Repositories
-
             services.AddScoped(typeof(IRepository<>), typeof(BaseRepository<>));
+            services.AddScoped(typeof(IUpdateService<>), typeof(UpdateService<>));
 
             //bookservices
-            services.AddScoped<BookServices>();
+            services.AddScoped<BookDataServices>();
 
             //Factories
             services.AddScoped<IFactory<Book, BookResponseModel>, BookFactory>();
@@ -92,7 +92,7 @@ namespace BookSpace.Web
             });
 
             // HTTP Service
-            services.AddSingleton<IHttpService, HttpService>();
+            services.AddScoped<IHttpService, HttpService>();
             //Search
             services.AddScoped<ISearchFactory, SearchFactory>();
             services.AddScoped<ISearchStrategyFactory, SearchStrategyFactory>();

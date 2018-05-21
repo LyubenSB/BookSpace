@@ -12,7 +12,7 @@
                 {
                     <li class="comment">
                         <div class="comment-author">
-                            <img width="50" height="50" class="avatar" src="@comment.AuthorPicUrl" alt="~/images/avatars/user-male.png ">
+                            <img width="50" height="50" class="avatar" srcset="@comment.AuthorPicUrl, https://upload.wikimedia.org/wikipedia/commons/f/f4/User_Avatar_2.png ">
 
                         </div>
                         <div class="comment-content">
@@ -29,10 +29,10 @@
                         @if (comment.CanEdit)
                         {
                             <div class="comment">
-                                <a onclick="deleteComment('@comment.CommentId', '@comment.BookId', '@comment.UserId')">
+                                <a onclick="deleteComment('@comment.CommentId')">
                                     <i class="fa fa-trash" aria-hidden="true" title="Delete comment"></i>
                                 </a>
-                                <a asp-action="EditCommentAsync" asp-controller="Comment" asp-route-commentId="@comment.CommentId"><i class="fa fa-eraser" aria-hidden="true" title="Edit comment"></i></a>
+                                <a onclick="editComment('@comment.CommentId')"><i class="fa fa-eraser" aria-hidden="true" title="Edit comment"></i></a>
 
                             </div>
                         }
@@ -59,17 +59,36 @@
 </div>
 
 <script>
+    function deleteComment(commentId) {
+        let commentData = {};
+        commentData.CommentId = commentId;
 
-    function deleteComment(commentId, bookId, userId) {
         $.ajax({
             type: "POST",
             url: "/Comment/DeleteCommentAsync",
-            data: { commentId: commentId, bookId: bookId, userId: userId },
+            data: commentData,
             success: (htmlData) => {
                 $('#commentsDiv').html(htmlData);
             },
             error: (response) => {
                 displayError('Error deleting comment');
+            }
+        })
+    }
+   
+    function editComment(commentId) {
+        let commentData = {};
+        commentData.CommentId = commentId;
+
+        $.ajax({
+            type: "GET",
+            url: "/Comment/EditCommentAsync",
+            data: commentData,
+            success: (htmlData) => {
+                $('#commentsDiv').html(htmlData);
+            },
+            error: (response) => {
+                displayError('Error editing comment');
             }
         })
     }

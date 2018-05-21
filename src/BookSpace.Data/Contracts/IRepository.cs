@@ -9,9 +9,12 @@ namespace BookSpace.Data.Contracts
                      where TEntity : class
     {
         Task<TEntity> GetByIdAsync(object id);
+
         Task<IEnumerable<TEntity>> GetAllAsync();
+
         Task<IEnumerable<TEntity>> GetManyAsync(Expression<Func<TEntity, bool>> where);
-        Task<TEntity> GetAsync(Expression<Func<TEntity, bool>> where);
+
+        Task<TEntity> GetByExpressionAsync(Expression<Func<TEntity, bool>> where);
 
         Task<IEnumerable<TProperty>> GetOneToManyAsync<TProperty>
                                    (Expression<Func<TEntity, bool>> where,
@@ -26,10 +29,6 @@ namespace BookSpace.Data.Contracts
 
         Task<IEnumerable<TEntity>> SearchByNavigationProperty(string include, string includeProp,
                                      Expression<Func<TEntity, bool>> filter);
-
-        Task AddAsync(TEntity entity);
-        Task UpdateAsync(TEntity entity);
-        Task DeleteAsync(TEntity entity);
 
         Task<PagedResult<TEntity>> GetPaged(int page, int pageSize);
 

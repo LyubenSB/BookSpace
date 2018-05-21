@@ -26,7 +26,7 @@ namespace BookSpace.Services
         {
             foreach (var genreName in genres)
             {
-                var genreId = this.genreRepository.GetAsync(g => g.Name == genreName).Result.GenreId;
+                var genreId = this.genreRepository.GetByExpressionAsync(g => g.Name == genreName).Result.GenreId;
 
                 var bookGenreRecord = new BookGenre()
                 {
@@ -44,7 +44,7 @@ namespace BookSpace.Services
         {
             foreach (var tagName in tags)
             {
-                var tagId = this.tagRepository.GetAsync(t => t.Value == tagName).Result.TagId;
+                var tagId = this.tagRepository.GetByExpressionAsync(t => t.Value == tagName).Result.TagId;
 
                 var bookTagRecord = new BookTag()
                 {

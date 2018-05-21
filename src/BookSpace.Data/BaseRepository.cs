@@ -29,7 +29,7 @@ namespace BookSpace.Data
             return await this.dbContext.DbSet<TEntity>().ToListAsync();
         }
 
-        public async Task<TEntity> GetAsync(Expression<Func<TEntity, bool>> where)
+        public async Task<TEntity> GetByExpressionAsync(Expression<Func<TEntity, bool>> where)
         {
             return await this.dbContext.DbSet<TEntity>().Where(where).FirstOrDefaultAsync<TEntity>();
         }
@@ -80,24 +80,6 @@ namespace BookSpace.Data
                     .Include(includeProp)
                     .Where(filter)
                     .ToListAsync();
-        }
-
-        public async Task AddAsync(TEntity entity)
-        {
-            await this.dbContext.DbSet<TEntity>().AddAsync(entity);
-            await this.dbContext.SaveAsync();
-        }
-
-        public async Task DeleteAsync(TEntity entity)
-        {
-            this.dbContext.DbSet<TEntity>().Remove(entity);
-            await this.dbContext.SaveAsync();
-        }
-
-        public async Task UpdateAsync(TEntity entity)
-        {
-            this.dbContext.DbSet<TEntity>().Update(entity);
-            await this.dbContext.SaveAsync();
         }
 
         public async Task<PagedResult<TEntity>> GetPaged(int page, int pageSize)

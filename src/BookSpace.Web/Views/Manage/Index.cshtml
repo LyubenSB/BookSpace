@@ -22,7 +22,7 @@
         <p class="user-picture-heading">Upload profile picture </p>
         <div class="picture-form">
             <div class="user-profile-picture">
-                <img id="image-preview" src="@Model.PictureUrl" />
+                <img id="image-preview" srcset="@Model.PictureUrl, https://upload.wikimedia.org/wikipedia/commons/f/f4/User_Avatar_2.png" />
             </div>
             <input type="file" name="file" accept="image/*" onchange="loadFile(event)"/>
             <input type="submit" value="Upload" class="profile-button user-picture-input" />

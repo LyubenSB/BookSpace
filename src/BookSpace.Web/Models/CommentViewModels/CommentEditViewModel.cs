@@ -8,8 +8,10 @@ namespace BookSpace.Web.Models.CommentViewModels
 {
     public class CommentEditViewModel
     {
+        [Required]
         public string CommentId { get; set; }
 
+        [Required]
         public string BookId { get; set; }
 
         [Required]
